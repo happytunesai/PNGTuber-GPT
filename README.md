@@ -65,7 +65,7 @@ This project is licensed under the [MIT License](LICENSE).
 ## Contact 👀
 
 For questions, issues, or contribution suggestions, please contact: `ChatGPT`, `Gemini`, `DeepSeek`, `Claude.ai` 🤖
-or try to dump it [here](https://github.com/happytunesai/EZ-SST-Logger-GUI/issues)! ✅
+or try to dump it [here](https://github.com/happytunesai/PNGTuber-GPT/issues)! ✅
 
 **GitHub:** [github.com/happytunesai/EZ-SST-Logger-GUI](https://github.com/happytunesai/EZ-SST-Logger-GUI)
 
