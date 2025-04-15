@@ -12,16 +12,16 @@ For more details, refer to the updated **[Getting Started guide](https://github.
 
 ### ✨ New Features
 
-- **WebSocket (STT) Input Support:**
+- **📡 WebSocket (STT) Input Support:**
   - Integrated support for receiving user input via WebSocket, specifically designed for tools like **[EZ SST Logger GUI](https://github.com/happytunesai/EZ-SST-Logger-GUI)**.
   - Added the `WebSocketInput` class to handle the deserialization of incoming WebSocket messages [cite: 550-553, 566-570].
   - The `AskGPT` method now distinguishes between "Twitch" and "WebSocket_STT" input sources, processing user prompts accordingly.
 
-- **Enhanced Context Management (`eventBrain.txt`):**
+- **📝 Enhanced Context Management (`eventBrain.txt`):**
   - Introduced `eventBrain.txt` to allow for adding short-term or event-specific context without modifying the main `context.txt` file.
   - Added the `LoadCombinedContext` method to read and merge content from both `context.txt` and `eventBrain.txt` for use in prompts.
 
-- **New Streamer.bot Action: `Process WebSocket EZ STT`**
+- **💬 Streamer.bot Action: `Process WebSocket EZ STT`**
   - Processes WebSocket messages via the following configuration:
     - **Source:** `Core > Websocket > Custom Server`
     - **Type:** `Custom Server Message`
@@ -33,7 +33,7 @@ For more details, refer to the updated **[Getting Started guide](https://github.
   - Example configuration:
     ![Process WebSocket EZ STT Action](https://github.com/user-attachments/assets/26529178-932d-4cd9-8ec4-cf96c4a6c0a2)
 
-- **New WebSocket Server: `SST`**
+- **🖥️ WebSocket Server: `SST`**
   - The server can be accessed at: `ws://127.0.0.1:1337/`
   - Example configuration:
     ![WebSocket Server](https://github.com/user-attachments/assets/5b8b367e-14e5-4e85-bff3-af7adb230aa3)
@@ -55,3 +55,20 @@ For more details, refer to the updated **[Getting Started guide](https://github.
 ### 🛠️ Other Changes
 
 - Minor adjustments to logging levels and messages throughout the code for improved clarity.
+
+## License
+
+This project is licensed under the [MIT License](LICENSE).
+
+---
+
+## Contact 👀
+
+For questions, issues, or contribution suggestions, please contact: `ChatGPT`, `Gemini`, `DeepSeek`, `Claude.ai` 🤖
+or try to dump it [here](https://github.com/happytunesai/EZ-SST-Logger-GUI/issues)! ✅
+
+**GitHub:** [github.com/happytunesai/EZ-SST-Logger-GUI](https://github.com/happytunesai/EZ-SST-Logger-GUI)
+
+---
+
+*Created with ❤️ + AI*
