@@ -368,6 +368,58 @@ public class CPHInline
     }
 
     /// <summary>
+    /// Lädt den Systemkontext, indem er sowohl die context.txt als auch die eventBrain.txt einliest.
+    /// Diese Funktion kombiniert den allgemeinen Kontext (z. B. Rollenvorgaben) mit den
+    /// Event-Informationen aus eventBrain.txt. So kannst du den Event-Part getrennt pflegen.
+    /// </summary>
+    /// <returns>Den kombinierten Text beider Dateien.</returns>
+    private string LoadCombinedContext()
+    {
+        // Hole den Pfad zur Datenbank (wo sich auch die Textdateien befinden)
+        string databasePath = CPH.GetGlobalVar<string>("Database Path", true);
+
+        // Bestimme die vollständigen Pfade zu den beiden Dateien
+        string contextPath = Path.Combine(databasePath, "context.txt");
+        string eventBrainPath = Path.Combine(databasePath, "eventBrain.txt");
+
+        string contextContent = "";
+        string eventBrainContent = "";
+
+        try
+        {
+            // Lese context.txt ein, falls vorhanden
+            if (File.Exists(contextPath))
+            {
+                contextContent = File.ReadAllText(contextPath);
+                LogToFile("Loaded context.txt successfully.", "DEBUG");
+            }
+            else
+            {
+                LogToFile("context.txt not found.", "WARN");
+            }
+
+            // Lese eventBrain.txt ein, falls vorhanden
+            if (File.Exists(eventBrainPath))
+            {
+                eventBrainContent = File.ReadAllText(eventBrainPath);
+                LogToFile("Loaded eventBrain.txt successfully.", "DEBUG");
+            }
+            else
+            {
+                LogToFile("eventBrain.txt not found.", "WARN");
+            }
+        }
+        catch (Exception ex)
+        {
+            LogToFile($"Error loading context files: {ex.Message}", "ERROR");
+        }
+
+        // Kombiniere beide Inhalte (z.B. durch einen Zeilenumbruch getrennt)
+        return contextContent + "\n" + eventBrainContent;
+    }
+
+
+    /// <summary>
     /// Queues a pair of messages to the GPTLog, one from the user and one from the assistant.
     /// This method ensures that messages are always kept in balance within the queue. 
     /// The queue is managed on a First-In-First-Out (FIFO) basis and maintains up to 5 pairs of messages.
@@ -1698,199 +1750,347 @@ public class CPHInline
             return false;
         }
     }
-
     /// <summary>
-    /// Sends a user's message to the GPT model and handles the response, including storing context and speaking the response aloud.
+    /// Represents the structure of the incoming WebSocket JSON message from the SST tool.
+    /// </summary>
+    public class WebSocketInput
+    {
+        public string source { get; set; }
+        public string user { get; set; }
+        public string text { get; set; }
+    }
+
+/// <summary>
+    /// Sends a user's message (from Twitch or WebSocket STT) to the GPT model and handles the response.
+    /// Performs TTS and sends the response to Twitch chat for ALL input sources.
     /// </summary>
     /// <returns>True if the GPT model provides a response, otherwise false.</returns>
     public bool AskGPT()
     {
-        LogToFile("Entering AskGPT method.", "DEBUG");
-        // Check if the ChatLog has been initialized and log the chat history if it exists.
+        // --- TEMPORARY DEBUGGING START ---
+        // LogToFile("--- AskGPT Triggered ---", "ERROR"); // Keep this if you still need it
+        string argsDiagnostic = $"Args ({args?.Count ?? 0}): ";
+        if (args != null) {
+            foreach (var kvp in args) {
+                string valueStr = kvp.Value?.ToString() ?? "null";
+                if (valueStr.Length > 150) valueStr = valueStr.Substring(0, 150) + "...";
+                argsDiagnostic += $"'{kvp.Key}'='{valueStr}'; ";
+            }
+        } else {
+            argsDiagnostic += "null";
+        }
+        LogToFile(argsDiagnostic, "ERROR"); // Log all received arguments clearly at ERROR level
+        // --- TEMPORARY DEBUGGING END ---
+
+
+        string inputSource = "Unknown";
+        string userName = "";
+        string userToSpeak = "";
+        string fullMessage = "";
+        string voiceAlias = "";
+        string databasePath = "";
+
+        // --- Input Handling ---
+        object wsMsgObj = null; // Declare outside the if
+        if (args.TryGetValue("wsMsg", out wsMsgObj) && wsMsgObj is string wsMsgJson && !string.IsNullOrWhiteSpace(wsMsgJson))
+        {
+            LogToFile($"DEBUG: Found wsMsg argument. Content: {wsMsgJson}", "DEBUG"); // Confirm wsMsg is found
+            inputSource = "WebSocket_STT";
+
+            try
+            {
+                LogToFile($"DEBUG: Attempting to deserialize JSON: {wsMsgJson}", "DEBUG");
+                WebSocketInput wsInput = JsonConvert.DeserializeObject<WebSocketInput>(wsMsgJson);
+
+                if (wsInput == null) {
+                    LogToFile("ERROR: Deserialization resulted in a null wsInput object.", "ERROR");
+                    // Maybe send TTS message about parsing error?
+                    // CPH.TtsSpeak(CPH.GetGlobalVar<string>("Voice Alias", true) ?? "Default", "Internal Error: Could not parse voice input data.", false);
+                    return false; // Exit early
+                }
+                LogToFile($"DEBUG: Deserialized OK. Source='{wsInput.source}', User='{wsInput.user}', Text='{wsInput.text}'", "DEBUG");
+
+                // Check source and text validity
+                if (wsInput.source == "stt" && !string.IsNullOrWhiteSpace(wsInput.text))
+                {
+                    LogToFile("INFO: Input identified as valid STT.", "INFO");
+                    userName = wsInput.user ?? "VoiceInput";
+                    fullMessage = wsInput.text;
+                    userToSpeak = "Voice Input"; // Or use wsInput.user
+                    LogToFile($"INFO: Variables set for STT: userName='{userName}', fullMessage='{fullMessage}', userToSpeak='{userToSpeak}'", "INFO");
+
+                    // Retrieve and VALIDATE global vars HERE for WS path
+                    voiceAlias = CPH.GetGlobalVar<string>("Voice Alias", true);
+                    databasePath = CPH.GetGlobalVar<string>("Database Path", true);
+
+                    if (string.IsNullOrWhiteSpace(voiceAlias)) {
+                        LogToFile("ERROR: 'Voice Alias' global variable is missing or empty (WS Path).", "ERROR");
+                        return false;
+                    }
+                    if (string.IsNullOrWhiteSpace(databasePath)) {
+                        LogToFile("ERROR: 'Database Path' global variable is missing or empty (WS Path).", "ERROR");
+                        return false;
+                    }
+                    LogToFile($"DEBUG: Globals retrieved OK for WS: voiceAlias='{voiceAlias}', databasePath='{databasePath}'", "DEBUG");
+                    LogToFile("DEBUG: WebSocket input processed successfully, proceeding to common logic.", "DEBUG");
+                }
+                else
+                {
+                    LogToFile($"WARN: WebSocket message ignored. Source ('{wsInput.source}') is not 'stt' or text ('{wsInput.text}') is empty.", "WARN");
+                    return false;
+                }
+            }
+            catch (JsonException jsonEx)
+            {
+                LogToFile($"ERROR: JSON Deserialization failed: {jsonEx.Message}. JSON attempted: {wsMsgJson}", "ERROR");
+                 // Maybe send TTS message about parsing error?
+                 // CPH.TtsSpeak(CPH.GetGlobalVar<string>("Voice Alias", true) ?? "Default", "Internal Error: Could not understand voice input data format.", false);
+                return false;
+            }
+            catch (Exception ex)
+            {
+                LogToFile($"ERROR: Unexpected exception during WebSocket input processing: {ex.Message}\n{ex.StackTrace}", "ERROR");
+                 // Maybe send TTS message about internal error?
+                 // CPH.TtsSpeak(CPH.GetGlobalVar<string>("Voice Alias", true) ?? "Default", "Internal Error: Failed processing voice input.", false);
+                return false;
+            }
+        }
+        else // --- Assume Twitch Input ---
+        {
+             LogToFile($"DEBUG: Processing as Twitch input (wsMsg argument missing or not a string: Found='{args.ContainsKey("wsMsg")}', Type='{wsMsgObj?.GetType()?.Name ?? "null"}').", "DEBUG");
+            inputSource = "Twitch";
+
+            // Retrieve and validate essential global vars for Twitch path
+            voiceAlias = CPH.GetGlobalVar<string>("Voice Alias", true);
+            databasePath = CPH.GetGlobalVar<string>("Database Path", true);
+
+             if (string.IsNullOrWhiteSpace(voiceAlias)) {
+                 LogToFile("ERROR: 'Voice Alias' global variable is missing or empty (Twitch Path).", "ERROR");
+                 CPH.SendMessage("I'm sorry, but I can't process this request right now (missing config).", true);
+                 return false;
+             }
+            if (string.IsNullOrWhiteSpace(databasePath)) {
+                 LogToFile("ERROR: 'Database Path' global variable is missing or empty (Twitch Path).", "ERROR");
+                 CPH.SendMessage("I'm sorry, but I can't process this request right now (missing config).", true);
+                 return false;
+             }
+             LogToFile($"DEBUG: Globals retrieved OK for Twitch: voiceAlias='{voiceAlias}', databasePath='{databasePath}'", "DEBUG");
+
+
+            // Get Twitch User Name - More robust check
+            object userNameObj = null;
+             if (!args.TryGetValue("userName", out userNameObj) || string.IsNullOrWhiteSpace(userNameObj?.ToString())) {
+                LogToFile("ERROR: 'userName' argument is missing or empty for Twitch input.", "ERROR");
+                CPH.SendMessage("I'm sorry, I couldn't identify who sent the message.", true);
+                return false;
+             }
+             userName = userNameObj.ToString();
+             LogToFile($"DEBUG: Retrieved Twitch 'userName': {userName}", "DEBUG");
+
+             // Determine User to Speak
+             userToSpeak = args.TryGetValue("nicknamePronouns", out object nicknameObj) && !string.IsNullOrWhiteSpace(nicknameObj?.ToString()) ? nicknameObj.ToString() : userName;
+             LogToFile($"DEBUG: Determined 'userToSpeak' for Twitch: {userToSpeak}", "DEBUG");
+
+
+            // Get Twitch Message Content
+             object messageObj = null;
+             if (args.TryGetValue("moderatedMessage", out messageObj) && !string.IsNullOrWhiteSpace(messageObj?.ToString())) {
+                fullMessage = messageObj.ToString();
+                LogToFile($"DEBUG: Using 'moderatedMessage' for Twitch input: {fullMessage}", "DEBUG");
+             } else if (args.TryGetValue("rawInput", out messageObj) && !string.IsNullOrWhiteSpace(messageObj?.ToString())) {
+                fullMessage = messageObj.ToString();
+                LogToFile($"DEBUG: Using 'rawInput' for Twitch input: {fullMessage}", "DEBUG");
+             } else {
+                LogToFile("ERROR: Both 'moderatedMessage' and 'rawInput' are missing or empty for Twitch input.", "ERROR");
+                CPH.SendMessage($"Sorry {userToSpeak}, I couldn't understand your message content.", true);
+                return false;
+             }
+             LogToFile($"INFO: Variables set for Twitch: userName='{userName}', fullMessage='{fullMessage}', userToSpeak='{userToSpeak}'", "INFO");
+        }
+
+        // --- Common Logic Starts Here ---
+        LogToFile($"DEBUG: Reached common logic area. InputSource='{inputSource}'.", "DEBUG");
+
+        // Final check if essential variables are populated
+        if (inputSource == "Unknown" || string.IsNullOrWhiteSpace(userName) || string.IsNullOrWhiteSpace(fullMessage) || string.IsNullOrWhiteSpace(voiceAlias) || string.IsNullOrWhiteSpace(databasePath))
+        {
+             LogToFile($"CRITICAL ERROR: Essential variables unexpectedly missing before context loading. Source='{inputSource}', User='{userName}', Msg='{fullMessage}', Voice='{voiceAlias}', DBPath='{databasePath}'", "ERROR");
+              if (inputSource == "Twitch") CPH.SendMessage("Sorry, a critical internal error occurred.", true);
+              // Maybe TTS error for WS?
+             return false;
+        }
+
+        // Initialize ChatLog if null
         if (ChatLog == null)
         {
             ChatLog = new Queue<chatMessage>();
-            LogToFile("ChatLog queue has been initialized for the first time.", "INFO");
+            LogToFile("DEBUG: ChatLog queue has been initialized.", "DEBUG");
         }
-        else
+        // Only log chat history for Twitch input (Can be adjusted if needed)
+        else if (inputSource == "Twitch")
         {
-            // Using LINQ to concatenate the message contents, separated by newlines.
-            string chatLogAsString = string.Join(Environment.NewLine, ChatLog.Select(m => m.content ?? "null"));
-            LogToFile($"ChatLog Content before asking GPT: {Environment.NewLine}{chatLogAsString}", "INFO");
+             try {
+                string chatLogAsString = string.Join(Environment.NewLine, ChatLog.Select(m => m?.content ?? "null"));
+                LogToFile($"INFO: ChatLog Content before asking GPT: {Environment.NewLine}{chatLogAsString}", "INFO");
+             } catch (Exception logEx) {
+                 LogToFile($"WARN: Error logging ChatLog content: {logEx.Message}", "WARN");
+             }
         }
 
-        // Retrieve and validate the voice alias global variable.
-        string voiceAlias = CPH.GetGlobalVar<string>("Voice Alias", true);
-        if (string.IsNullOrWhiteSpace(voiceAlias))
-        {
-            LogToFile("'Voice Alias' global variable is not found or not a valid string.", "ERROR");
-            CPH.SendMessage("I'm sorry, but I can't answer that question right now. Please check the log for details.", true);
-            return false;
-        }
 
-        LogToFile("Retrieved and validated 'Voice Alias' global variable.", "DEBUG");
-        // Retrieve and validate the user name argument.
-        string userName;
-        if (!args.TryGetValue("userName", out object userNameObj) || string.IsNullOrWhiteSpace(userNameObj?.ToString()))
-        {
-            LogToFile("'userName' argument is not found or not a valid string.", "ERROR");
-            CPH.SendMessage("I'm sorry, but I can't answer that question right now. Please check the log for details.", true);
-            return false;
-        }
-
-        userName = userNameObj.ToString();
-        LogToFile("Retrieved and validated 'userName' argument.", "DEBUG");
-        // Determine the nickname or username to speak.
-        string userToSpeak = args.TryGetValue("nicknamePronouns", out object nicknameObj) && !string.IsNullOrWhiteSpace(nicknameObj?.ToString()) ? nicknameObj.ToString() : userName;
-        if (string.IsNullOrWhiteSpace(userToSpeak))
-        {
-            LogToFile("Both 'nicknamePronouns' and 'userName' are not found or are empty strings.", "ERROR");
-            CPH.SendMessage("I'm sorry, but I can't answer that question right now. Please check the log for details.", true);
-            return false;
-        }
-
-        // Retrieve and validate the database path global variable.
-        string databasePath = CPH.GetGlobalVar<string>("Database Path");
-        if (string.IsNullOrWhiteSpace(databasePath))
-        {
-            LogToFile("'Database Path' global variable is not found or not a valid string.", "ERROR");
-            CPH.SendMessage("I'm sorry, but I can't answer that question right now. Please check the log for details.", true);
-            return false;
-        }
-
-        LogToFile("Retrieved and validated 'Database Path' global variable.", "DEBUG");
-        // Retrieve the full message to process, either the moderated message or the raw input.
-        string fullMessage;
-        if (args.TryGetValue("moderatedMessage", out object moderatedMessageObj) && !string.IsNullOrWhiteSpace(moderatedMessageObj?.ToString()))
-        {
-            fullMessage = moderatedMessageObj.ToString();
-        }
-        else if (args.TryGetValue("rawInput", out object rawInputObj) && !string.IsNullOrWhiteSpace(rawInputObj?.ToString()))
-        {
-            fullMessage = rawInputObj.ToString();
-        }
-        else
-        {
-            LogToFile("Both 'moderatedMessage' and 'rawInput' are not found or are empty strings.", "ERROR");
-            CPH.SendMessage("I'm sorry, but I can't answer that question right now. Please check the log for details.", true);
-            return false;
-        }
-
-        // Construct the paths to the context and keyword context files and ensure they exist.
-        string ContextFilePath = Path.Combine(databasePath, "context.txt");
+        // --- Context Loading ---
+        LogToFile("DEBUG: Loading combined context...", "DEBUG");
+        string systemPrompt = LoadCombinedContext();
         string keywordContextFilePath = Path.Combine(databasePath, "keyword_contexts.json");
-        LogToFile("Constructed file paths for context and keyword context storage.", "DEBUG");
-        // Check if the keyword context file exists and read its contents; otherwise, initialize an empty dictionary.
-        Dictionary<string, string> keywordContexts;
+        LogToFile($"DEBUG: Keyword Context File Path: {keywordContextFilePath}", "DEBUG");
+
+        Dictionary<string, string> keywordContexts = new Dictionary<string, string>();
         if (File.Exists(keywordContextFilePath))
         {
-            string jsonContent = File.ReadAllText(keywordContextFilePath);
-            keywordContexts = JsonConvert.DeserializeObject<Dictionary<string, string>>(jsonContent) ?? new Dictionary<string, string>();
-            LogToFile("Loaded existing keyword contexts from file.", "DEBUG");
-        }
-        else
-        {
-            keywordContexts = new Dictionary<string, string>();
-            LogToFile("Initialized new dictionary for keyword contexts.", "DEBUG");
+            try
+            {
+                 string jsonContent = File.ReadAllText(keywordContextFilePath);
+                 keywordContexts = JsonConvert.DeserializeObject<Dictionary<string, string>>(jsonContent) ?? new Dictionary<string, string>();
+                 LogToFile($"DEBUG: Loaded {keywordContexts.Count} keyword contexts from file.", "DEBUG");
+            }
+            catch (Exception ex)
+            {
+                 LogToFile($"ERROR: Failed reading/parsing keyword contexts file '{keywordContextFilePath}': {ex.Message}", "ERROR");
+            }
+        } else {
+            LogToFile("INFO: Keyword context file not found.", "INFO");
         }
 
-        // Load additional context from files and global variables.
-        string context = File.Exists(ContextFilePath) ? File.ReadAllText(ContextFilePath) : "";
+        // Load stream info
+        LogToFile("DEBUG: Retrieving stream info...", "DEBUG");
         string broadcaster = CPH.GetGlobalVar<string>("broadcaster", false);
         string currentTitle = CPH.GetGlobalVar<string>("currentTitle", false);
         string currentGame = CPH.GetGlobalVar<string>("currentGame", false);
-        string contextBody = $"{context}\nWe are currently doing: {currentTitle}\n{broadcaster} is currently playing: {currentGame}";
-        LogToFile("Assembled context body for GPT prompt.", "DEBUG");
-        // Formulate the prompt for GPT.
-        string prompt = $"{userToSpeak} asks: {fullMessage}";
-        LogToFile($"Constructed prompt for GPT: {prompt}", "DEBUG");
-        // Check for mentions of keywords within the prompt and add relevant context.
-        bool keywordMatch = keywordContexts.Keys.Any(keyword => prompt.IndexOf(keyword, StringComparison.OrdinalIgnoreCase) >= 0);
-        if (keywordMatch)
-        {
-            // If a keyword is mentioned, append its context to the body.
-            string keyword = keywordContexts.Keys.First(keyword => prompt.IndexOf(keyword, StringComparison.OrdinalIgnoreCase) >= 0);
-            string keywordPhrase = $"Something you know about {keyword} is:";
-            string keywordValue = keywordContexts[keyword];
-            contextBody += $"\n{keywordPhrase} {keywordValue}\n";
-            LogToFile("Added keyword-specific context to context body.", "DEBUG");
-        }
+        LogToFile($"DEBUG: Stream Info: Broadcaster='{broadcaster}', Title='{currentTitle}', Game='{currentGame}'", "DEBUG");
 
-        // Check for user-specific context and append it as well.
-        if (keywordContexts.ContainsKey(userName))
-        {
-            string usernamePhrase = $"Something you know about {userToSpeak} is:";
-            string usernameValue = keywordContexts[userName];
-            contextBody += $"\n{usernamePhrase} {usernameValue}\n";
-            LogToFile("Added user-specific context to context body.", "DEBUG");
-        }
+        // Build context body
+        string contextBody = $"{systemPrompt}\nWe are currently doing: {currentTitle}\n{broadcaster} is currently playing: {currentGame}";
+        LogToFile("DEBUG: Assembled base context body.", "DEBUG");
 
+        // --- Prompt Formulation ---
+        string prompt = $"{userToSpeak} says: {fullMessage}";
+        LogToFile($"INFO: Constructed prompt for GPT: {prompt}", "DEBUG"); // Log prompt at DEBUG
+
+        // Add keyword context
+         try {
+            var matchedKeywords = keywordContexts.Keys.Where(keyword => !string.IsNullOrEmpty(keyword) && prompt.IndexOf(keyword, StringComparison.OrdinalIgnoreCase) >= 0).ToList();
+             if (matchedKeywords.Any()) {
+                foreach(var keyword in matchedKeywords) {
+                     string keywordPhrase = $"Something you know about {keyword} is:";
+                     string keywordValue = keywordContexts[keyword];
+                     contextBody += $"\n{keywordPhrase} {keywordValue}";
+                     LogToFile($"DEBUG: Added context for keyword: {keyword}", "DEBUG");
+                }
+             } else {
+                 LogToFile("DEBUG: No keywords found in prompt.", "DEBUG");
+             }
+         } catch (Exception keyEx) {
+              LogToFile($"WARN: Error processing keyword contexts: {keyEx.Message}", "WARN");
+         }
+
+        // Add user-specific context (Only for Twitch by default)
+         if (inputSource == "Twitch" && keywordContexts.ContainsKey(userName)) {
+            try {
+                 string usernamePhrase = $"Something you know about {userToSpeak} is:";
+                 string usernameValue = keywordContexts[userName];
+                 contextBody += $"\n{usernamePhrase} {usernameValue}";
+                 LogToFile($"DEBUG: Added user-specific context for Twitch user {userName}.", "DEBUG");
+            } catch (Exception userKeyEx) {
+                 LogToFile($"WARN: Error adding user context for {userName}: {userKeyEx.Message}", "WARN");
+            }
+         } else {
+             LogToFile($"DEBUG: Skipping user-specific context (Source: {inputSource}, User: {userName}).", "DEBUG");
+         }
+
+
+        // --- Call GPT and Handle Response ---
+        LogToFile("DEBUG: Calling GenerateChatCompletion...", "DEBUG");
         try
         {
-            // Call the GPT model with the prompt and the context.
-            string GPTResponse = GenerateChatCompletion(prompt, contextBody); // Placeholder for the actual GPT call.
-            if (string.IsNullOrWhiteSpace(GPTResponse))
-            {
-                LogToFile("GPT model did not return a response.", "ERROR");
-                CPH.SendMessage("I'm sorry, but I can't answer that question right now. Please check the log for details.", true);
+            string GPTResponse = GenerateChatCompletion(prompt, contextBody);
+
+            if (string.IsNullOrWhiteSpace(GPTResponse) || GPTResponse == "ChatGPT did not return a response." || GPTResponse.StartsWith("Configuration error")) {
+                LogToFile($"ERROR: GenerateChatCompletion returned an invalid response: '{GPTResponse}'", "ERROR");
+                if (inputSource == "Twitch") {
+                    CPH.SendMessage($"I'm sorry {userToSpeak}, I couldn't get a response right now.", true);
+                } else {
+                    CPH.TtsSpeak(voiceAlias, "Sorry, I could not get a response.", false);
+                }
                 return false;
             }
+            LogToFile($"INFO: GPT Response received: {GPTResponse}", "INFO");
 
-            LogToFile($"GPT model response: {GPTResponse}", "DEBUG");
-            // Speak the GPT response.
+
+            // Speak the GPT response (common)
+             LogToFile("DEBUG: Attempting TTS Speak...", "DEBUG");
             CPH.TtsSpeak(voiceAlias, GPTResponse, false);
-            LogToFile("Spoke GPT's response.", "INFO");
-            // Send the response in chunks to the chat if it's longer than a certain length.
+            LogToFile("INFO: TTS Speak executed.", "INFO");
+
+            // --- Send response to Twitch chat (NOW FOR ALL SOURCES) ---
+            LogToFile($"DEBUG: Sending response to chat (Source: {inputSource})...", "DEBUG");
             if (GPTResponse.Length > 500)
             {
-                LogToFile("The response is too long for Twitch; it will be sent in chunks to the chat.", "INFO");
+                LogToFile($"INFO: Response length ({GPTResponse.Length}) > 500. Sending in chunks.", "INFO");
                 int startIndex = 0;
                 while (startIndex < GPTResponse.Length)
                 {
-                    // Determine the chunk size dynamically based on punctuation or space before 500 characters.
                     int chunkSize = Math.Min(500, GPTResponse.Length - startIndex);
                     int endIndex = startIndex + chunkSize;
-                    // Look for the last full word or punctuation if the chunkSize is less than the total length.
+
                     if (endIndex < GPTResponse.Length)
                     {
-                        int lastSpaceIndex = GPTResponse.LastIndexOf(' ', endIndex, chunkSize);
-                        int lastPunctuationIndex = GPTResponse.LastIndexOf('.', endIndex, chunkSize);
-                        lastPunctuationIndex = Math.Max(lastPunctuationIndex, GPTResponse.LastIndexOf('!', endIndex, chunkSize));
-                        lastPunctuationIndex = Math.Max(lastPunctuationIndex, GPTResponse.LastIndexOf('?', endIndex, chunkSize));
-                        int lastBreakIndex = Math.Max(lastSpaceIndex, lastPunctuationIndex);
-                        if (lastBreakIndex > startIndex)
-                        {
-                            endIndex = lastBreakIndex;
-                        }
+                         int lastBreak = -1;
+                         for (int i = endIndex - 1; i > startIndex; i--) {
+                             if (".!? ".Contains(GPTResponse[i])) {
+                                 lastBreak = i + 1;
+                                 break;
+                             }
+                         }
+                         if (lastBreak > startIndex && (endIndex - lastBreak < 100)) {
+                             endIndex = lastBreak;
+                         }
                     }
 
-                    // Extract the substring for the current chunk.
                     string messageChunk = GPTResponse.Substring(startIndex, endIndex - startIndex).Trim();
-                    CPH.SendMessage(messageChunk, true);
-                    // Update the startIndex for the next loop iteration.
+                    if (!string.IsNullOrWhiteSpace(messageChunk))
+                    {
+                        CPH.SendMessage(messageChunk, true);
+                        LogToFile($"DEBUG: Sent chunk ({messageChunk.Length} chars): {messageChunk}", "DEBUG");
+                        System.Threading.Thread.Sleep(1000);
+                    } else {
+                         LogToFile("DEBUG: Skipping empty chunk.", "DEBUG");
+                    }
                     startIndex = endIndex;
-                    // Sleep after sending each message chunk to avoid flooding.
-                    System.Threading.Thread.Sleep(1000);
                 }
-
-                return true;
+                 LogToFile("INFO: Finished sending chunks to chat.", "INFO");
             }
             else
             {
                 CPH.SendMessage(GPTResponse, true);
-                LogToFile("Sent GPT response to chat.", "INFO");
+                LogToFile($"INFO: Sent full response ({GPTResponse.Length} chars) to chat.", "INFO");
             }
+            // --- End of sending response to chat ---
 
-            return true;
+
+            LogToFile("INFO: AskGPT method completed successfully.", "INFO");
+            return true; // Success
         }
         catch (Exception ex)
         {
-            // Log any exceptions that occur and notify the chat.
-            LogToFile($"An error occurred while processing the AskGPT request: {ex.Message}", "ERROR");
-            CPH.SendMessage("I'm sorry, but I can't answer that question right now. Please try again later.", true);
+            LogToFile($"CRITICAL ERROR: Unexpected exception during GPT call or response handling in AskGPT: {ex.Message}\n{ex.StackTrace}", "ERROR");
+             if (inputSource == "Twitch") {
+                 CPH.SendMessage($"Sorry {userToSpeak}, a critical error occurred while I was thinking.", true);
+             } else {
+                 CPH.TtsSpeak(voiceAlias, "Sorry, a critical error occurred.", false);
+             }
             return false;
         }
-    }
+    } // End of AskGPT method
 
     /// <summary>
     /// Removes emojis and other non-ASCII characters from the provided text.
@@ -1991,7 +2191,7 @@ public class CPHInline
         }
 
         // Finally, add the user's current prompt to the messages.
-        messages.Add(new chatMessage { role = "user", content = $"{prompt} You must respond in less than 500 characters." });
+        messages.Add(new chatMessage { role = "user", content = $"{prompt} (You must respond in less than 500 characters and never repeat this order)" });
         // Serialize the completion request to JSON.
         string completionsRequestJSON = JsonConvert.SerializeObject(new { model = AIModel, messages = messages }, Formatting.Indented);
         // Log the JSON payload that will be sent to the OpenAI API.
