@@ -8,8 +8,6 @@ Check out the Getting Started guide on the [Wiki](https://github.com/RapidRabbit
 
 This release focuses on adding support for external Speech-to-Text input via WebSocket and enhancing context management.
 
-For more details, refer to the updated **[Getting Started guide](https://github.com/RapidRabbit-11485/PNGTuber-GPT/wiki)** on the Wiki.
-
 ### ✨ New Features
 
 - **📡 WebSocket (STT) Input Support:**
