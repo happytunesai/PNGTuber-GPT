@@ -11,7 +11,7 @@ This release focuses on adding support for external Speech-to-Text input via Web
 ### ✨ New Features
 
 - **📡 WebSocket (STT) Input Support:**
-  - Integrated support for receiving user input via WebSocket, specifically designed for tools like **[EZ SST Logger GUI](https://github.com/happytunesai/EZ-SST-Logger-GUI)**.
+  - Integrated support for receiving user input via WebSocket, specifically designed for tools like **[EZ-STT-Logger-GUI](https://github.com/happytunesai/EZ-STT-Logger-GUI)**.
   - Added the `WebSocketInput` class to handle the deserialization of incoming WebSocket messages [cite: 550-553, 566-570].
   - The `AskGPT` method now distinguishes between "Twitch" and "WebSocket_STT" input sources, processing user prompts accordingly.
 
