@@ -34,7 +34,8 @@ This release focuses on adding support for external Speech-to-Text input via Web
 - **🖥️ WebSocket Server: `SST`**
   - The server can be accessed at: `ws://127.0.0.1:1337/`
   - Example configuration:
-    ![WebSocket Server](https://github.com/user-attachments/assets/5b8b367e-14e5-4e85-bff3-af7adb230aa3)
+    ![WebSocket Server](https://github.com/user-attachments/assets/8836004a-31c9-4871-b613-dab0cd2702fe)
+
 
 ### ♻️ Refactoring & Improvements
 
