@@ -36,6 +36,20 @@ This release focuses on adding support for external Speech-to-Text input via Web
   - Example configuration:
     ![WebSocket Server](https://github.com/user-attachments/assets/8836004a-31c9-4871-b613-dab0cd2702fe)
 
+# WebSocket Server Setup
+After you’ve imported the Streamer.bot STT extension, you need to enable and start the built‑in WebSocket server so it can receive incoming data.
+
+## 1. Import the Extension
+
+1. Open **Streamer.bot**.
+2. Click **File → Import** and select the STT extension package you downloaded.
+3. Confirm and let the import finish.
+
+## 2. Enable Auto‑Start
+
+1. Switch to the **Servers/Clients** tab.
+2. Click on **WebSocket Servers**.
+3. Right‑click the entry labeled:
 
 ### ♻️ Refactoring & Improvements
 

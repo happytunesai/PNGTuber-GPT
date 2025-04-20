@@ -368,17 +368,17 @@ public class CPHInline
     }
 
     /// <summary>
-    /// Lädt den Systemkontext, indem er sowohl die context.txt als auch die eventBrain.txt einliest.
-    /// Diese Funktion kombiniert den allgemeinen Kontext (z. B. Rollenvorgaben) mit den
-    /// Event-Informationen aus eventBrain.txt. So kannst du den Event-Part getrennt pflegen.
+    /// Loads the system context by reading both context.txt and eventBrain.txt.
+    /// This function combines the general context (e.g., role specifications) with the
+    /// event information from eventBrain.txt. This allows you to maintain the event part separately.
     /// </summary>
-    /// <returns>Den kombinierten Text beider Dateien.</returns>
+    /// <returns>The combined text of both files.</returns>
     private string LoadCombinedContext()
     {
-        // Hole den Pfad zur Datenbank (wo sich auch die Textdateien befinden)
+        // Get the path to the database (where the text files are also located)
         string databasePath = CPH.GetGlobalVar<string>("Database Path", true);
 
-        // Bestimme die vollständigen Pfade zu den beiden Dateien
+        // Determine the full paths to the two files
         string contextPath = Path.Combine(databasePath, "context.txt");
         string eventBrainPath = Path.Combine(databasePath, "eventBrain.txt");
 
@@ -387,7 +387,7 @@ public class CPHInline
 
         try
         {
-            // Lese context.txt ein, falls vorhanden
+            // Read context.txt, if it exists
             if (File.Exists(contextPath))
             {
                 contextContent = File.ReadAllText(contextPath);
@@ -398,7 +398,7 @@ public class CPHInline
                 LogToFile("context.txt not found.", "WARN");
             }
 
-            // Lese eventBrain.txt ein, falls vorhanden
+            // Read eventBrain.txt, if it exists
             if (File.Exists(eventBrainPath))
             {
                 eventBrainContent = File.ReadAllText(eventBrainPath);
@@ -414,7 +414,7 @@ public class CPHInline
             LogToFile($"Error loading context files: {ex.Message}", "ERROR");
         }
 
-        // Kombiniere beide Inhalte (z.B. durch einen Zeilenumbruch getrennt)
+        // Combine both contents (e.g., separated by a newline)
         return contextContent + "\n" + eventBrainContent;
     }
 
@@ -1767,7 +1767,6 @@ public class CPHInline
     /// <returns>True if the GPT model provides a response, otherwise false.</returns>
     public bool AskGPT()
     {
-        // --- TEMPORARY DEBUGGING START ---
         // LogToFile("--- AskGPT Triggered ---", "ERROR"); // Keep this if you still need it
         string argsDiagnostic = $"Args ({args?.Count ?? 0}): ";
         if (args != null) {
@@ -1780,7 +1779,6 @@ public class CPHInline
             argsDiagnostic += "null";
         }
         LogToFile(argsDiagnostic, "ERROR"); // Log all received arguments clearly at ERROR level
-        // --- TEMPORARY DEBUGGING END ---
 
 
         string inputSource = "Unknown";
