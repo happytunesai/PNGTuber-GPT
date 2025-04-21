@@ -1,12 +1,9 @@
-# PNGTuber-GPT
-This is a custom C# action for Streamer.bot and Speaker.bot to add a GPT-based PNGTuber to your stream!
-
-## Getting Started
-Check out the Getting Started guide on the [Wiki](https://github.com/RapidRabbit-11485/PNGTuber-GPT/wiki)!
-
-## PNGTuber-GPT-WS v1.2 Update Notes
-
+# PNGTuber-GPT-WS
 This release focuses on adding support for external Speech-to-Text input via WebSocket and enhancing context management.
+
+## Description
+- PNGTuber-GPT-WS is a **forked** Version of the Original [PNGTuber-GPT](https://github.com/RapidRabbit-11485/PNGTuber-GPT) by @RapidRabbit-11485
+This is a custom C# action for Streamer.bot and Speaker.bot to add a GPT-based PNGTuber to your stream!
 
 ### ✨ New Features
 
