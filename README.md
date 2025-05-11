@@ -1,4 +1,4 @@
-# PNGTuber-GPT-WS
+F# PNGTuber-GPT-WS
 This release focuses on adding support for external Speech-to-Text input via WebSocket and enhancing context management.
 
 ## Description
@@ -28,7 +28,7 @@ This is a custom C# action for Streamer.bot and Speaker.bot to add a GPT-based P
   - Example configuration:
     ![Process WebSocket EZ STT Action](https://github.com/user-attachments/assets/26529178-932d-4cd9-8ec4-cf96c4a6c0a2)
 
-- **🖥️ WebSocket Server: `SST`**
+- **🖥️ WebSocket Server: `STT`**
   - The server can be accessed at: `ws://127.0.0.1:1337/`
   - Example configuration:
     ![WebSocket Server](https://github.com/user-attachments/assets/eab5a9a5-63b9-4a7c-a3f8-30bbb2bb1cc4)
@@ -82,7 +82,7 @@ This project is licensed under the [MIT License](LICENSE).
 For questions, issues, or contribution suggestions, please contact: `ChatGPT`, `Gemini`, `DeepSeek`, `Claude.ai` 🤖
 or try to dump it [here](https://github.com/happytunesai/PNGTuber-GPT/issues)! ✅
 
-**GitHub:** [github.com/happytunesai/EZ-SST-Logger-GUI](https://github.com/happytunesai/EZ-SST-Logger-GUI)
+**GitHub:** [github.com/happytunesai/EZ-STT-Logger-GUI](https://github.com/happytunesai/EZ-STT-Logger-GUI)
 
 ---
 
