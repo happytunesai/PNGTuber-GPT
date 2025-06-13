@@ -56,6 +56,9 @@ After you’ve imported the Streamer.bot STT extension, you need to enable and s
 1. Switch to the **Servers/Clients** tab.
 2. Click on **WebSocket Servers**.
 3. Right‑click the entry labeled:
+![Auto‑Start](https://github.com/user-attachments/assets/1d243373-1b99-43c2-8b41-fa5c643ada91)
+
+![Start](https://github.com/user-attachments/assets/692f6287-f67f-4f72-b917-89a692d7116b)
 
 - **🎭 Role Management System:**
   - Automatic detection of user roles: Broadcaster > Moderator > VIP > Subscriber > Follower > Viewer
