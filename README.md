@@ -1,12 +1,11 @@
-
+# PNGTuber-GPT-WS 1.3
 **Version:** 1.3
 **Status:** Release
 
-# PNGTuber-GPT
-This is a custom C# action for Streamer.bot and Speaker.bot to add a GPT-based PNGTuber to your stream!
-
-# PNGTuber-GPT-WS
-Is a forked Version of PNGTuber-GPT with new Features. 
+---
+## Description
+- ⭐ PNGTuber-GPT: This is a custom C# action for Streamer.bot and Speaker.bot to add a GPT-based PNGTuber to your stream! by @RapidRabbit-11485
+- ⭐ PNGTuber-GPT-WS: This is a **forked** Version of the Original [PNGTuber-GPT](https://github.com/RapidRabbit-11485/PNGTuber-GPT). This is a custom C# action for Streamer.bot and Speaker.bot to add a GPT-based PNGTuber to your stream!
 
 ## Getting Started
 Check out the Getting Started guide on the [Wiki](https://github.com/RapidRabbit-11485/PNGTuber-GPT/wiki)!
@@ -87,6 +86,9 @@ This section defines how the bot should respond to messages based on the user's 
   - Bot now knows when a chatter is a follower vs a regular viewer
   - Uses `followDate` argument to determine follower status
   - Enables personalized responses for followers vs first-time viewers
+    
+![grafik](https://github.com/user-attachments/assets/576c6bd8-c3c9-401f-ab6f-c929fad96505)
+
 
 - **📊 Enhanced Logging:** Comprehensive role detection logging and debugging support for troubleshooting
 
