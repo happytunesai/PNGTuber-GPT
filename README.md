@@ -1,14 +1,19 @@
+
+**Version:** 1.3
+**Status:** Release
+
 # PNGTuber-GPT
 This is a custom C# action for Streamer.bot and Speaker.bot to add a GPT-based PNGTuber to your stream!
+
+# PNGTuber-GPT-WS
+Is a forked Version of PNGTuber-GPT with new Features. 
 
 ## Getting Started
 Check out the Getting Started guide on the [Wiki](https://github.com/RapidRabbit-11485/PNGTuber-GPT/wiki)!
 
-## PNGTuber-GPT-WS v1.2 Update Notes
+---
 
-This release focuses on adding support for external Speech-to-Text input via WebSocket and enhancing context management.
-
-### ✨ New Features
+### ✨ Features
 
 - **📡 WebSocket (STT) Input Support:**
   - Integrated support for receiving user input via WebSocket, specifically designed for tools like **[EZ-STT-Logger-GUI](https://github.com/happytunesai/EZ-STT-Logger-GUI)**.
@@ -50,6 +55,36 @@ After you’ve imported the Streamer.bot STT extension, you need to enable and s
 1. Switch to the **Servers/Clients** tab.
 2. Click on **WebSocket Servers**.
 3. Right‑click the entry labeled:
+
+- **🎭 Role Management System:**
+  - Automatic detection of user roles: Broadcaster > Moderator > VIP > Subscriber > Follower > Viewer
+  - Role information integrated into GPT prompts and TTS announcements
+  - Context-based role responses that can be customized in bot context file
+  - When role management rules are added to the context file, bot behavior changes based on user roles:
+
+### 🧩 Chatter Role Management (Response Guidelines)
+
+This section defines how the bot should respond to messages based on the user's Twitch role. Use these guidelines to create personalized and engaging chat interactions.
+
+| Role            | Response Style                                                                 |
+|-----------------|----------------------------------------------------------------------------------|
+| **Broadcaster** | No special handling. This is the channel owner.                                 |
+| **VIP**         | Friendly and enthusiastic greeting. Highlight their VIP status positively.      |
+| **Moderator**   | Warm and welcoming tone. Playful or humorous remarks about their mod role.      |
+| **Follower**    | Kind, appreciative greeting. Acknowledge them as part of the community.         |
+| **Subscriber T1** | Thankful and polite. Recognize their support with cheerful words.              |
+| **Subscriber T2** | More emotional gratitude. Highlight their extra contribution.                  |
+| **Subscriber T3** | Highly appreciative and enthusiastic. Make them feel truly special and valued. |
+
+> Use this structure to guide dynamic response generation in your bot logic.
+
+- **👥 New Sub Action for AskGPT:**
+  - Added follower age detection that checks follow date of chatters
+  - Bot now knows when a chatter is a follower vs a regular viewer
+  - Uses `followDate` argument to determine follower status
+  - Enables personalized responses for followers vs first-time viewers
+
+- **📊 Enhanced Logging:** Comprehensive role detection logging and debugging support for troubleshooting
 
 ### ♻️ Refactoring & Improvements
 
